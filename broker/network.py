@@ -1,4 +1,5 @@
 from hypothesis.stateful import GenericStateMachine
+from hypothesis.strategies import tuples, sampled_from, just, integers, one_of
 
 class NetworkBroker(GenericStateMachine):
     """
@@ -17,7 +18,32 @@ class NetworkBroker(GenericStateMachine):
         self.messages = []
 
     def steps(self):
-        pass
+        #TODO(Wesley) Make more clear
+        existing_edges = sum([[(a[0], b) for b in a[1]] for a in self.network.items()], [])
+        broken_edges = sum([[(a[0], b) for b in (set(self.nodes.keys()) - a[1]) if a[0] != b] for a in self.network.items()], [])
+
+        deliver_msg = tuple(just("DeliverMsg"))
+        drop_msg = tuple(just("DropMsg"))
+        duplicate_msg = tuple(just("DuplicateMsg"))
+        delay_msg = tuple(just("DelayMsg"), integers(min_value=1, max_value=len(self.messages)))
+        destroy_edge = tuple(just("DestroyEdge"), sampled_from(existing_edges))
+        heal_edge = tuple(just("HealEdge"), sampled_from(broken_edges))
+
+        actions = []
+
+        if len(existing_edges) > 0:
+            actions.append(destroy_edge)
+
+        if len(broken_edges) > 0:
+            actions.append(heal_edge)
+
+        if len(self.messages) != 0:
+            actions.append(deliver_msg)
+            actions.append(drop_msg)
+            actions.append(duplicate_msg)
+            actions.append(delay_msg)
+
+        return one_of(actions)
 
     def execute_step(self, step):
         """
@@ -35,7 +61,8 @@ class NetworkBroker(GenericStateMachine):
         DelayMsg n
             Push the message at the front of the queue back by n slots
         """
-        action, value = step
+        action = step[0]
+        value = step[1:]
         if action == "DeliverMsg":
             message = self.messages.pop(0)
             self.nodes[message[1]].recv(message[0], message[2])
@@ -49,4 +76,3 @@ class NetworkBroker(GenericStateMachine):
             self.messages.insert(0, self.messages[0])
         if action == "DelayMsg":
             self.messages.insert(value, self.messages.pop(0))
-
