@@ -1,4 +1,5 @@
 from hypothesis.stateful import GenericStateMachine
+from hypothesis.strategies import tuples, sampled_from, just, one_of
 
 class PowerBroker(GenericStateMachine):
     """
@@ -12,7 +13,8 @@ class PowerBroker(GenericStateMachine):
         self.down_nodes = {}
 
     def steps(self):
-        pass
+        return one_of([tuples(just("Stop"), sample_from(self.up_nodes.keys())),
+                       tuples(just("Start"), sample_from(self.down_nodes.keys()))])
 
     def execute_step(self, step):
         """
