@@ -17,6 +17,9 @@ class NetworkBroker(GenericStateMachine):
         self.network = dict([(i, set(nodes.keys())) for i in nodes.keys()])
         self.messages = []
 
+    def send_to(self, sender, to, data):
+        self.messages.append((to, sender, data))
+
     def steps(self):
         #TODO(Wesley) Make more clear
         existing_edges = sum([[(a[0], b) for b in a[1]] for a in self.network.items()], [])
