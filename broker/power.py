@@ -1,5 +1,6 @@
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import tuples, sampled_from, just, one_of
+from node import Node, DownNode
 
 class PowerBroker(GenericStateMachine):
     """
@@ -27,6 +28,9 @@ class PowerBroker(GenericStateMachine):
 
         #TODO(Wesley) Insert DownNode into up_nodes when killing a node
         if action == "Start":
-            self.up_nodes[value] = self.down_nodes.pop(value)
+            if type(down_nodes[value]) == Node:
+                self.up_nodes[value] = self.down_nodes.pop(value)
         elif action == "Stop":
-            self.down_nodes[value] = self.up_nodes.pop(value)
+            if type(up_nodes[value]) == DownNode:
+                self.down_nodes[value] = self.up_nodes.pop(value)
+                self.up_nodes[value] = DownNode()

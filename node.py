@@ -1,11 +1,4 @@
-
 class DownNode:
-    def __init__(self,node_id,conf,random_seed,broker):
-        self.node_id = node_id
-        self.conf = conf
-        self.random_seed = random_seed
-        self.broker = broker
-
     def receive(self,sender,message):
         pass
 
