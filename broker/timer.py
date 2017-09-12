@@ -32,11 +32,11 @@ class TimerBroker(GenericStateMachine):
         next_timer = self.timer_queue.pop(0)
         if next_timer:
             node_id,timer_id,time_out = next_timer
-            self.nodes[node_id].timer_trip(timer_id)
+            self.nodes[node_id].timer_trip()
 
     def add_timer(self,node_id,timer_id,time_out):
         """
         add_timer is the public interface for the TimerBroker. members in the cluster call this function, and when the timer trips,
         Their 'timer_trip' function will be called.
         """
-        self.timer_queue.append((node_id,timer_id,time_out))
+        self.timer_queue.append((node_id,time_out))
