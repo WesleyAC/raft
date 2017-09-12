@@ -26,7 +26,7 @@ class TimerBroker(GenericStateMachine):
         elif step[0] == 'Delay':
             delay = step[1]
             timer_bumped = self.timer_queue.pop(0)
-            self.timer_queue = self.timer_queue[0:-delay] + [timer_bumped] + self.timer_queue[-delay:]
+            self.timer_queue.insert(delay,timer_bumped)
 
     def dispatch_next_timer(self):
         next_timer = self.timer_queue.pop(0)
