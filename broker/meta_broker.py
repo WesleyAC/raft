@@ -20,7 +20,7 @@ class MetaBroker(GenericStateMachine):
                       tuples(just('Power',  self.power_broker.step())))
 
     def execute_step(self, step):
-        broker,action = step[0]
+        broker,action = step
         if broker == 'Timer':
             self.timer_broker.execute_step(action)
         elif broker == 'File':
