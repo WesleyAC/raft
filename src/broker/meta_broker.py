@@ -1,7 +1,9 @@
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import tuples, sampled_from, just, integers,one_of
+
+from broker import timer,file_system,network,power
+
 from random import Random
-from brokers import timer,file_system,network,power
 
 from node import Node
 
@@ -14,6 +16,7 @@ class MetaBroker(GenericStateMachine):
         For now, this is where cluster initialization happens.
         """
         conf = {'node_list':set(range(5)),'heartbeat_freq':100,'election_timeout_window':(150,300)}
+
         self.nodes = {}
         for nid in range(5):
             random_seed = Random()
@@ -21,16 +24,16 @@ class MetaBroker(GenericStateMachine):
             self.nodes[nid] = Node(nid,conf,random_seed,self)
 
         self.action_queue = []
-        self.timer_broker = timer.TimerBroker(nodes)
-        self.file_broker = file_system.FileBroker(nodes)
-        self.network_broker = network.NetworkBroker(nodes)
-        self.power_broker = power.PowerBroker(nodes)
+        self.timer_broker = timer.TimerBroker(self.nodes)
+        self.file_broker = file_system.FileBroker(self.nodes)
+        self.network_broker = network.NetworkBroker(self.nodes)
+        self.power_broker = power.PowerBroker(self.nodes)
 
     def steps(self):
-        return one_of(tuples(just('Timer',  self.timer_broker.step())),
-                      tuples(just('File',   self.file_broker.step())),
-                      tuples(just('Network',self.network_broker.step())),
-                      tuples(just('Power',  self.power_broker.step())))
+        return one_of(tuples(just('Timer'),  self.timer_broker.steps()),
+                      tuples(just('File'),   self.file_broker.steps()),
+                      tuples(just('Network'),self.network_broker.steps()),
+                      tuples(just('Power'),  self.power_broker.steps()))
 
     def execute_step(self, step):
         broker,action = step

@@ -25,12 +25,12 @@ class NetworkBroker(GenericStateMachine):
         existing_edges = sum([[(a[0], b) for b in a[1]] for a in self.network.items()], [])
         broken_edges = sum([[(a[0], b) for b in (set(self.nodes.keys()) - a[1]) if a[0] != b] for a in self.network.items()], [])
 
-        deliver_msg = tuple(just("DeliverMsg"))
-        drop_msg = tuple(just("DropMsg"))
-        duplicate_msg = tuple(just("DuplicateMsg"))
-        delay_msg = tuple(just("DelayMsg"), integers(min_value=1, max_value=len(self.messages)))
-        destroy_edge = tuple(just("DestroyEdge"), sampled_from(existing_edges))
-        heal_edge = tuple(just("HealEdge"), sampled_from(broken_edges))
+        deliver_msg = tuples(just("DeliverMsg"))
+        drop_msg = tuples(just("DropMsg"))
+        duplicate_msg = tuples(just("DuplicateMsg"))
+        delay_msg = tuples(just("DelayMsg"), integers(min_value=1, max_value=len(self.messages)))
+        destroy_edge = tuples(just("DestroyEdge"), sampled_from(existing_edges))
+        heal_edge = tuples(just("HealEdge"), sampled_from(broken_edges))
 
         actions = []
 
@@ -68,7 +68,7 @@ class NetworkBroker(GenericStateMachine):
         value = step[1:]
         if action == "DeliverMsg":
             message = self.messages.pop(0)
-            self.nodes[message[1]].recv(message[0], message[2])
+            self.nodes[message[1]].receive(message[0], message[2])
         if action == "DropMsg":
             self.messages.pop(0)
         if action == "DestroyEdge":
