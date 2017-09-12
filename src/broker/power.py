@@ -14,8 +14,8 @@ class PowerBroker(GenericStateMachine):
         self.down_nodes = {}
 
     def steps(self):
-        return one_of([tuples(just("Stop"), sample_from(self.up_nodes.keys())),
-                       tuples(just("Start"), sample_from(self.down_nodes.keys()))])
+        return one_of([tuples(just("Stop"), sampled_from(self.up_nodes.keys())),
+                       tuples(just("Start"), sampled_from(self.down_nodes.keys()))])
 
     def execute_step(self, step):
         """
