@@ -90,3 +90,4 @@ class Node:
             for node in self.conf.node_list:
                 self.broker.send_to(self.node_id, node,
                         AppendEntries(self.term, self.node_id, len(self.log), self.log[-1][1], [], self.commit_index))
+            self.broker.add_timer(self.node_id, self.conf.heartbeat_freq)
