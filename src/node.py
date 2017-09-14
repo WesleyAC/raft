@@ -24,8 +24,37 @@ class Node:
         self.election_timout = self.calculate_election_timeout()
 
     def calculate_election_timeout(self):
+        self.rng.randint(*self.conf["heartbeat_window"])
+
+    def setup(self):
+        self.broker.add_timer(self.node_id, self.election_timeout)
+
+    def change_type(self, to):
+        """
+        Convert this node to a different type, and make any other needed state changes.
+        """
+        assert to == "F" or to == "C" or to == "L"
+        self.node_type = to
+        if to == "F" or to == "C":
+            self.broker.add_timer(self.node_id, self.election_timeout)
+        elif to == "L":
+            self.broker.add_timer(self.node_id, self.conf.heartbeat_freq)
+
+    def update_term(self, term):
+        """
+        If term is greater than the current term, update the term and make any
+        other needed state changes.
+        """
+        if term > self.term:
+            self.term = term
+            self.change_type("F")
+            self.votes_received = set()
+            self.voted_for = None
+            self.election_timout = self.calculate_election_timeout()
+
+    def calculate_election_timeout(self):
         self.rng.rand_int(self.conf.election_timeout_window[0],
-                          self.conf.election_timeout_window[1]))
+                          self.conf.election_timeout_window[1])
 
     def setup(self):
         self.broker.add_timer(self.node_id, self.election_timeout)

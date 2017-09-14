@@ -1,5 +1,5 @@
 from hypothesis.stateful import GenericStateMachine
-from hypothesis.strategies import tuples,sampled_from,just,integers,one_of,fixed_dictionary,sets,flatmap
+from hypothesis.strategies import tuples,sampled_from,just,integers,one_of,fixed_dictionaries,sets,lists
 from collections import namedtuple
 from random import Random
 from heapq import heapify,heappush,heappop
@@ -15,10 +15,10 @@ class WorldBroker(GenericStateMachine):
         self.event_window_length = 150
         self.message_send_delay = 6
 
-        conf = {'heartbeat_window': (150,300),'nodes':set(self.node_ids)}
-
         # Initialize the cluster
         self.node_ids = range(5)
+
+        conf = {'heartbeat_window': (150,300),'nodes':set(self.node_ids)}
 
         # Event Queue
         self.current_time = 0
@@ -34,7 +34,7 @@ class WorldBroker(GenericStateMachine):
                             'node_timers': {k:None for k in self.node_ids}}
 
         # Network Management
-        self.network_broker = {'network_connections': {k:set(node_ids) for k in node_ids}}
+        self.network_broker = {'network_connections': {k:set(self.node_ids) for k in self.node_ids}}
 
 
     # Begin Helper functions for event generation
@@ -43,7 +43,7 @@ class WorldBroker(GenericStateMachine):
                                            max_value=self.event_window_length+self.current_time),
                     'event_length': integers(min_value=1,max_value=self.event_window_length)}
         base_map.update(additional_map)
-        return fixed_dictionary(base_map).flatmap(event_type)
+        return fixed_dictionaries(base_map).flatmap(event_type)
 
     def gen_node(self):
         return sample_from(self.node_ids)
