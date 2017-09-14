@@ -1,0 +1,144 @@
+from hypothesis.stateful import GenericStateMachine
+from hypothesis.strategies import tuples,sampled_from,just,integers,one_of,fixed_dictionary,sets,flatmap
+from collections import namedtuple
+from random import Random
+from heapq import heapify,heappush,heappop
+from node import Node
+from copy import copy
+
+
+class WorldBroker(GenericStateMachine):
+    def __init__(self):
+        # Run/Test Settings
+        self.catastrophy_level = 4
+        self.time_window_length = 400
+        self.event_window_length = 150
+        self.message_send_delay = 6
+
+        conf = {'heartbeat_window': (150,300),'nodes':set(self.node_ids)}
+
+        # Initialize the cluster
+        self.node_ids = range(5)
+
+        # Event Queue
+        self.current_time = 0
+        self.action_queue = []
+
+
+        # Power Management
+        self.power_broker = {'up_nodes': {k:Node(k,conf,Random(k),self) for k in self.node_ids},
+                             'down_nodes': {}}
+
+        # Time Management
+        self.time_broker = {'node_time_offsets': {},
+                            'node_timers': {k:None for k in self.node_ids}}
+
+        # Network Management
+        self.network_broker = {'network_connections': {k:set(node_ids) for k in node_ids}}
+
+
+    # Begin Helper functions for event generation
+    def gen_basic_event(self,event_type,additional_map):
+        base_map = {'start_time': integers(min_value=self.current_time,
+                                           max_value=self.event_window_length+self.current_time),
+                    'event_length': integers(min_value=1,max_value=self.event_window_length)}
+        base_map.update(additional_map)
+        return fixed_dictionary(base_map).flatmap(event_type)
+
+    def gen_node(self):
+        return sample_from(self.node_ids)
+
+    def gen_node_set(self):
+        return sets(self.node_ids)
+
+    def gen_node_pair(self):
+        return tuple(self.gen_node(),self.gen_node())
+
+    def gen_node_pairs(self):
+        return sets(self.gen_node_pair())
+
+
+    # Begin Event Generators
+
+    def gen_power_event(self):
+        return self.basic_event(PowerDown, {'affected_node':self.gen_node()})
+
+    def gen_clock_event(self):
+        return self.basic_event(ClockSkew,
+                                {'affected_node':gen_node(),
+                                 'skew_amount':integers(min_value=-100,max_value=100)})
+
+    def gen_network_event(self):
+        return one_of(
+            self.basic_event(DeliveryDelay,
+                             {'affected_nodes': self.gen_node_set(),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
+            self.basic_event(DeliveryDrop,
+                             {'affected_nodes': self.gen_node_set()}),
+            self.basic_event(ReceiveDrop,
+                             {'affected_nodes': self.gen_node_set(),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
+            self.basic_event(TransmitDrop,
+                             {'affected_node_pair': self.gen_node_pair(),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
+            self.basic_event(DeliveryDuplicate,
+                             {'affected_node': sample_from(self.up_nodes.keys()),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}))
+
+    def gen_adverse_event(self):
+        return one_of(self.gen_network_event(),self.gen_power_event(),self.gen_clock_event())
+
+
+    def steps(self):
+        return lists(self.gen_adverse_event(),max_size=self.catastrophy_level)
+
+    def execute_step(self, steps):
+        """
+        steps is a list of steps (possibly len() 0)
+        """
+
+        # Add a set of events to the action_queue, an the corresponding events to heal it
+        for event in steps:
+            reversals = event.reverse()
+            heappush(self.action_queue,event.prioritize())
+            for rev in reversals:
+                heappush(self.action_queue,rev.prioritize())
+
+        # Run the event loop
+        run_until = self.current_time + self.time_window_length
+        while self.current_time <= run_until:
+            # Handle any event at the current slice in time
+            while self.action_queue[0][0] == self.current_time:
+                self.dispatch_event(self.action_queue.pop())
+            # Trip timers if we're there
+            for node in self.node_ids:
+                if self.time_broker['node_timers'][node] and self.current_time + self.time_broker['node_time_offsets'][node] > self.time_broker['node_timers'][node]:
+                    self.power_broker['up_nodes'][node].timer_trip()
+
+
+    # Event Dispatch
+    def dispatch_event(self,event):
+        if isinstance(event,NetworkEvent):
+            event.handle(self.power_broker['up_nodes'],self.network_broker)
+        elif isinstance(event,PowerEvent):
+            if isinstance(event,PowerDown):
+                # Special cross-broker concern, clear timer
+                self.time_broker['node_timers'][event['affected_node']] = None
+            event.handle(self.power_broker['up_nodes'],self.power_broker)
+        elif isinstance(event,TimerEvent):
+            event.handle(self.power_broker['up_nodes'],self.time_broker)
+
+    # Handle Timer Events
+
+    def set_timer(self,node_id,timeout):
+        self.time_broker['node_timers'][node_id] = self.current_time + self.time_broker['node_time_offsets']
+
+    def clear_timer(self,node_id):
+        self.time_broker['node_timers'][node_id] = None
+
+    # Handle Network Events
+
+    def send_to(self,sender,to,data):
+        heappush(self.action_queue,DeliverMessage({'affected_node':to,'start_time':self.current_time + self.message_send_delay, 'data': data, 'sender': sender}))
+
+
