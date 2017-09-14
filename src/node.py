@@ -13,10 +13,10 @@ class DownNode:
 
 
 class Node:
-    def __init__(self,node_id,conf,random_seed,broker):
+    def __init__(self,node_id,conf,rng,broker):
         self.node_id = node_id
         self.conf = conf
-        self.random_seed = random_seed
+        self.rng = rng
         self.broker = broker
         self.state = 0
 
@@ -27,13 +27,14 @@ class Node:
         self.voted_for = None
         self.node_type = "F"
         self.votes_received = set()
-        self.election_timout = self.calculate_election_timeout()
+        self.election_timeout = self.calculate_election_timeout()
+
 
     def calculate_election_timeout(self):
-        self.rng.randint(*self.conf["heartbeat_window"])
+        return self.rng.randint(*self.conf["heartbeat_window"])
 
     def setup(self):
-        self.broker.add_timer(self.node_id, self.election_timeout)
+        self.broker.set_timeout(self.node_id, self.election_timeout)
 
     def change_type(self, to):
         """
@@ -42,9 +43,9 @@ class Node:
         assert to == "F" or to == "C" or to == "L"
         self.node_type = to
         if to == "F" or to == "C":
-            self.broker.add_timer(self.node_id, self.election_timeout)
+            self.broker.set_timeout(self.node_id, self.election_timeout)
         elif to == "L":
-            self.broker.add_timer(self.node_id, self.conf.heartbeat_freq)
+            self.broker.set_timeout(self.node_id, self.conf.heartbeat_freq)
 
     def update_term(self, term):
         """
@@ -57,7 +58,6 @@ class Node:
             self.votes_received = set()
             self.voted_for = None
             self.election_timout = self.calculate_election_timeout()
->>>>>>> 23be9ba... Fix typos in node and worldbroker
 
     def receive(self,sender,message):
         pass
