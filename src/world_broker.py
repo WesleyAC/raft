@@ -7,8 +7,7 @@ from random import Random
 from heapq import heapify,heappush,heappop
 from events import *
 from node import Node
-from copy import deepcopy
-
+from copy import copy
 
 
 class WorldBroker(GenericStateMachine):
@@ -21,17 +20,17 @@ class WorldBroker(GenericStateMachine):
 
         # Initialize the cluster
         self.node_ids = range(5)
-        conf = {'election_timeout_window': (150,300),
-                'heartbeat_timeout': 100,
-                'nodes':set(self.node_ids)}
+        conf = {'heartbeat_window': (150,300),'nodes':set(self.node_ids)}
 
         # Event Queue
         self.current_time = 0
         self.action_queue = []
 
+
         # File Management
         # Currently, we're modeling ideal, synchronous files system operations
         self.file_broker = {k:{} for k in self.node_ids}
+
 
         # Power Management
         self.power_broker = {'up_nodes': {k:Node(k,conf,Random(k),self) for k in self.node_ids},
@@ -42,10 +41,7 @@ class WorldBroker(GenericStateMachine):
                             'node_timers': {k:None for k in self.node_ids}}
 
         # Network Management
-        self.network_broker = {'connections':set([(f,t) for f in self.node_ids for t in self.node_ids if t != f]),
-                               'delays':{(f,t):0 for f in self.node_ids for t in self.node_ids if t != f},
-                               'duplicates':{(f,t):0 for f in self.node_ids for t in self.node_ids if t != f}
-        }
+        self.network_broker = {'network_connections': {k:set(self.node_ids) for k in self.node_ids}}
 
         # The nodes should be "Brough up" after all the brokers are in place
         for node in self.power_broker['up_nodes'].values():
@@ -55,8 +51,8 @@ class WorldBroker(GenericStateMachine):
     # Begin Helper functions for event generation
     def gen_basic_event(self,event_type,additional_map):
         base_map = {'start_time': integers(min_value=self.current_time,
-                                           max_value=self.time_window_length+self.current_time),
-                    'event_length': integers(min_value=1,max_value=self.time_window_length)}
+                                           max_value=self.event_window_length+self.current_time),
+                    'event_length': integers(min_value=1,max_value=self.event_window_length)}
         base_map.update(additional_map)
         return fixed_dictionaries(base_map).flatmap(event_type)
 
@@ -87,18 +83,18 @@ class WorldBroker(GenericStateMachine):
         return one_of(
             self.gen_basic_event(DeliveryDelay,
                              {'affected_nodes': self.gen_node_set(),
-                              'delay':integers(min_value=1,max_value=self.event_window_length)}),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
             self.gen_basic_event(DeliveryDrop,
                              {'affected_nodes': self.gen_node_set()}),
             self.gen_basic_event(ReceiveDrop,
                              {'affected_nodes': self.gen_node_set(),
-                              'delay':integers(min_value=1,max_value=self.event_window_length)}),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
             self.gen_basic_event(TransmitDrop,
                              {'affected_node_pair': self.gen_node_pair(),
-                              'delay':integers(min_value=1,max_value=self.event_window_length)}),
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
             self.gen_basic_event(DeliveryDuplicate,
                              {'affected_node': (self.gen_node()),
-                              'delay':integers(min_value=1,max_value=self.event_window_length)}))
+                              'delay':integers(min_value=1,max_value=self.time_window_length)}))
 
     def gen_adverse_event(self):
         return one_of(self.gen_network_event(),self.gen_power_event(),self.gen_clock_event())
@@ -115,22 +111,21 @@ class WorldBroker(GenericStateMachine):
         # Add a set of events to the action_queue, an the corresponding events to heal it
         for event in steps:
             reversals = event.reverse()
-            heappush(self.action_queue,event)
+            heappush(self.action_queue,event.prioritize())
             for rev in reversals:
-                heappush(self.action_queue,rev)
+                heappush(self.action_queue,rev.prioritize())
 
         # Run the event loop
         run_until = self.current_time + self.time_window_length
         while self.current_time <= run_until:
             # Handle any event at the current slice in time
 
-            while len(self.action_queue) > 0 and self.action_queue[0].get_start_time() == self.current_time:
+            while len(self.action_queue) > 0 and self.action_queue[0][0] == self.current_time:
                 self.dispatch_event(self.action_queue.pop())
-            # Trip timers if timer is past timeout.
+            # Trip timers if we're there
             for node in self.node_ids:
-                if self.time_broker['node_timers'][node]:
-                    if self.current_time + self.time_broker['node_time_offsets'][node] > self.time_broker['node_timers'][node]:
-                        self.power_broker['up_nodes'][node].timer_trip()
+                if self.time_broker['node_timers'][node] and self.current_time + self.time_broker['node_time_offsets'][node] > self.time_broker['node_timers'][node]:
+                    self.power_broker['up_nodes'][node].timer_trip()
             self.current_time += 1
 
 
@@ -157,15 +152,7 @@ class WorldBroker(GenericStateMachine):
     # Handle Network Events
 
     def send_to(self,sender,to,data):
-        assert(sender != to)
-
-        event_time = self.current_time + self.message_send_delay + self.network_broker['delays'][(sender, to)]
-        event_map = {'affected_node':to,
-                                 'start_time': event_time,
-                                 'data': data,
-                                 'sender': sender}
-
-        heappush(self.action_queue, DeliverMessage(event_map))
+        heappush(self.action_queue,DeliverMessage({'affected_node':to,'start_time':self.current_time + self.message_send_delay, 'data': data, 'sender': sender}))
 
 TestSet = WorldBroker.TestCase
 
