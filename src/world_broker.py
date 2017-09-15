@@ -41,7 +41,10 @@ class WorldBroker(GenericStateMachine):
                             'node_timers': {k:None for k in self.node_ids}}
 
         # Network Management
-        self.network_broker = {'network_connections': {k:set(self.node_ids) for k in self.node_ids}}
+        self.network_broker = {'connections':set([(f,t) for f in self.node_ids for t in self.node_ids if t != f]),
+                               'delays':{(f,t):0 for f in self.node_ids for t in self.node_ids if t != f},
+                               'duplicates':{(f,t):0 for f in self.node_ids for t in self.node_ids if t != f}
+        }
 
         # The nodes should be "Brough up" after all the brokers are in place
         for node in self.power_broker['up_nodes'].values():

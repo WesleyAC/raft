@@ -1,4 +1,5 @@
 from copy import copy
+from node import DownNode
 
 class Event:
     """
@@ -36,78 +37,135 @@ class DeliveryDelay(NetworkEvent):
 class StopDeliveryDelay:
     def __init__(self,event_map): super().__init__(event_map)
 
+
 class ReceiveDrop(NetworkEvent):
     def __init__(self,event_map): super().__init__(event_map)
     def reverse(self): return StopDeliveryDrop(self.window_terminus())
+    def handle(self,nodes,network_broker):
+        for to_id in self.event_map['affected_nodes']:
+            for from_node in nodes:
+                network_broker['connections'].discard((from_node,to_node))
 class StopReceiveDrop:
     def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,network_broker):
+        for to_id in self.event_map['affected_nodes']:
+            for from_node in nodes:
+                network_broker['connections'].add((from_node,to_node))
+
 
 class TransmitDrop(NetworkEvent):
+    """
+    TransmitDrop represents all packets sent between two nodes being dropped.
+    """
     def __init__(self,event_map): super().__init__(event_map)
     def reverse(self): return StopTransmitDrop(self.window_terminus())
+    def handle(self,nodes,network_broker):
+        pair = self.event_map['affected_node_pair']
+        network_broker['connections'].discard(pair)
+
 class StopTransmitDrop:
     def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,network_broker):
+        pair = self.event_map['affected_node_pair']
+        network_broker['connections'].add(pair)
+
 
 class DeliveryDuplicate(NetworkEvent):
+    """
+    DeliveryDuplicates Represents all messaages that a node attempts to deliver being duplicated.
+    """
     def __init__(self,event_map): super().__init__(event_map)
     def reverse(self): return StopDeliveryDuplicate(self.window_terminus())
+    def handle(self,nodes,network_broker):
+        from_node = self.event_map['affected_node']
+        for to_node in nodes:
+            network_broker['duplicates'][(from_node,to_node)] += 1
+
 class StopDeliveryDuplicate:
     def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,network_broker):
+        from_node = self.event_map['affected_node']
+        for to_node in nodes:
+            network_broker['duplicates'][(from_node,to_node)] = max(0,network_broker['duplicates'][(from_node,to_node)] -1)
 
 class DeliverMessage(NetworkEvent):
+    """
+    DeliverMessage represents the attempted delivery of a message.
+    This checks if there is a network disruption that prevents the message from being delivered,
+    and the case that power is down on the node is taken care of due to DownNodes in the nodes arg.
+    """
     def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,network_broker):
+        from_node = self.event_map['sender']
+        to_node = self.event_map['affected_node']
+        if (from_node,to_node) in network_broker['connections']:
+            nodes[to_node].receive(from_node,self.event_map['data'])
+
+
+class HealNetwork(NetworkEvent):
+    def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,network_broker):
+        network_broker['connections'] = set([(f,t) for f in self.node_ids for t in self.node_ids if t != f])
+        network_broker['delays'] = {(f,t):0 for f in self.node_ids for t in self.node_ids if t != f}
+        network_broker['duplicates'] = {(f,t):0 for f in self.node_ids for t in self.node_ids if t != f}
+
+
+# --------------------------Power Management------------------------------------
 
 class PowerEvent(Event):
     def __init__(self,event_map): super().__init__(event_map)
     def handle(self,nodes,power_broker): pass
+
 class PowerDown(PowerEvent):
+    """
+    PowerDown Represents a node shutting down.
+    """
     def __init__(self,event_map): super().__init__(event_map)
     def reverse(self): return StopPowerDown(self.window_terminus())
-class StopPowerDown(PowerEvent):
-    def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,power_broker):
+        node_id = self.event_map['affected_node']
+        if node_id not in power_broker['down_nodes']:
+            power_broker['down_nodes'][node_id] =  power_broker['up_nodes'][node_id]
+            power_broker['up_nodes'][node_id] = DownNode()
 
+class StopPowerDown(PowerEvent):
+    """
+    StopPowerDown Represents a node coming back up.
+    """
+    def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,power_broker):
+        node_id = self.event_map['affected_node']
+        if node_id in power_broker['down_nodes']:
+            power_broker['up_nodes'][node_id] = power_broker['down_nodes'][node_id]
+            del power_broker['down_nodes'][node_id]
+
+
+class HealPower(PowerEvent):
+    def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,power_broker):
+        for node_id,node in power_broker['down_nodes']:
+            power_broker['up_nodes'][node_id] = node
+            del power_broker['down_nodes'][node_id]
+
+#------------------------ Time Management---------------------------------------
 
 class TimerEvent(Event):
     def __init__(self,event_map): super().__init__(event_map)
     def handle(self,nodes,time_broker): pass
+
 class ClockSkew(TimerEvent):
+    """
+    ClockSkew Represents a one time skew of a clock on an individual node.
+    """
     def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,time_broker):
+        time_broker['node_time_offsets'][self.event_map['affected_node']] += self.event_map['delay']
 
-
-
-
-
-
-
-
-
-# class PowerBroker(GenericStateMachine):
-#     """
-#     Starts and stops nodes
-#     nodes = A map of node ids to node objects
-#     """
-#     def __init__(self, nodes):
-#         self.up_nodes = nodes
-#         self.down_nodes = {}
-#     def steps(self):
-#         return one_of([tuples(just("Stop"), sample_from(self.up_nodes.keys())),
-#                        tuples(just("Start"), sample_from(self.down_nodes.keys()))])
-#     def execute_step(self, step):
-#         """
-#         Actions:
-#         Start node_id
-#         Stop node_id
-#         """
-#         action, value = step
-#         #TODO(Wesley) Insert DownNode into up_nodes when killing a node
-#         if action == "Start":
-#             if type(down_nodes[value]) == Node:
-#                 self.up_nodes[value] = self.down_nodes.pop(value)
-#         elif action == "Stop":
-#             if type(up_nodes[value]) == DownNode:
-#                 self.down_nodes[value] = self.up_nodes.pop(value)
-#                 self.up_nodes[value] = DownNode()
-
+class HealTimer(TimerEvent):
+    def __init__(self,event_map): super().__init__(event_map)
+    def handle(self,nodes,time_broker):
+        for node_id in time_broker['node_timers']:
+            time_broker['node_timers'][node_id] = 0
 
 
 # class NetworkBroker(GenericStateMachine):
