@@ -126,10 +126,11 @@ class WorldBroker(GenericStateMachine):
 
             while len(self.action_queue) > 0 and self.action_queue[0].get_start_time() == self.current_time:
                 self.dispatch_event(self.action_queue.pop())
-            # Trip timers if we're there
+            # Trip timers if timer is past timeout.
             for node in self.node_ids:
-                if self.time_broker['node_timers'][node] and self.current_time + self.time_broker['node_time_offsets'][node] > self.time_broker['node_timers'][node]:
-                    self.power_broker['up_nodes'][node].timer_trip()
+                if self.time_broker['node_timers'][node]:
+                    if self.current_time + self.time_broker['node_time_offsets'][node] > self.time_broker['node_timers'][node]:
+                        self.power_broker['up_nodes'][node].timer_trip()
             self.current_time += 1
 
 

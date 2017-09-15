@@ -29,6 +29,15 @@ class Node:
         return self.rng.randint(self.conf['election_timeout_window'][0],
                                 self.conf['election_timeout_window'][1])
 
+    def is_candidate(self):
+        return self.node_type == 'Candidate'
+
+    def is_follower(self):
+        return self.node_type == 'Follower'
+
+    def is_leader(self):
+        return self.node_type == 'Leader'
+
     def setup(self):
         self.broker.set_timeout(self.node_id, self.election_timeout)
 
@@ -40,7 +49,7 @@ class Node:
         self.node_type = to
         if to == 'Follower' or to == 'Candidate':
             self.broker.set_timeout(self.node_id, self.election_timeout)
-        elif to == "L":
+        elif to == 'Leader':
             self.broker.set_timeout(self.node_id, self.conf['heartbeat_timeout'])
 
     def update_term(self, term):
@@ -50,7 +59,7 @@ class Node:
         """
         if term > self.term:
             self.term = term
-            self.change_type("F")
+            self.change_type('Follower')
             self.votes_received = set()
             self.voted_for = None
             self.election_timout = self.calculate_election_timeout()
@@ -62,10 +71,13 @@ class Node:
                type(message) == AppendEntriesResponse or \
                type(message) == RequestVoteResponse
         if type(message) == AppendEntries:
-            if self.node_type == "F":
+            if self.is_follower():
                 self.broker.set_timeout(self.node_id, self.election_timeout)
-            elif self.node_type == "C" or self.node_type == "L":
-                self.change_type("F")
+            elif self.is_candidate() or self.is_leader():
+                self.change_type('Follower')
+            else:
+                # This case will fire when we add cluster config changes.
+                assert(False)
         elif type(message) == RequestVote:
             if message.term < self.term or self.voted_for is not None:
                 self.broker.send_to(self.node_id, sender, RequestVoteResponse(self.term, False))
@@ -77,7 +89,7 @@ class Node:
             if message.vote_granted:
                 self.votes_received.add(sender)
                 if len(self.votes_received) > math.floor(len(self.conf['nodes'])/2):
-                    self.change_type("L")
+                    self.change_type('Leader')
 
     def timer_trip(self):
         # TODO: this if statement was added to fix a "compile error". This was not thought through and may be
@@ -88,8 +100,8 @@ class Node:
             last_logged_term = self.log[-1][0]
             last_logged_entry = self.log[-1][1]
 
-        if self.node_type == "F" or self.node_type == "C":
-            self.change_type("C")
+        if not self.is_leader():
+            self.change_type('Candidate')
             self.update_term(self.term+1)
             self.votes_received.add(self.node_id)
             self.voted_for = self.node_id
@@ -97,7 +109,7 @@ class Node:
                 if self.node_id != node:
                     self.broker.send_to(self.node_id, node,
                         RequestVote(self.term, self.node_id, len(self.log), last_logged_term))
-        elif self.node_type == "L":
+        else:
             for node in self.conf['nodes']:
                 if self.node_id != node:
                     self.broker.send_to(self.node_id, node,
