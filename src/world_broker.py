@@ -26,11 +26,9 @@ class WorldBroker(GenericStateMachine):
         self.current_time = 0
         self.action_queue = []
 
-
         # File Management
         # Currently, we're modeling ideal, synchronous files system operations
         self.file_broker = {k:{} for k in self.node_ids}
-
 
         # Power Management
         self.power_broker = {'up_nodes': {k:Node(k,conf,Random(k),self) for k in self.node_ids},
@@ -54,8 +52,8 @@ class WorldBroker(GenericStateMachine):
     # Begin Helper functions for event generation
     def gen_basic_event(self,event_type,additional_map):
         base_map = {'start_time': integers(min_value=self.current_time,
-                                           max_value=self.event_window_length+self.current_time),
-                    'event_length': integers(min_value=1,max_value=self.event_window_length)}
+                                           max_value=self.time_window_length+self.current_time),
+                    'event_length': integers(min_value=1,max_value=self.time_window_length)}
         base_map.update(additional_map)
         return fixed_dictionaries(base_map).flatmap(event_type)
 
@@ -86,18 +84,18 @@ class WorldBroker(GenericStateMachine):
         return one_of(
             self.gen_basic_event(DeliveryDelay,
                              {'affected_nodes': self.gen_node_set(),
-                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
+                              'delay':integers(min_value=1,max_value=self.event_window_length)}),
             self.gen_basic_event(DeliveryDrop,
                              {'affected_nodes': self.gen_node_set()}),
             self.gen_basic_event(ReceiveDrop,
                              {'affected_nodes': self.gen_node_set(),
-                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
+                              'delay':integers(min_value=1,max_value=self.event_window_length)}),
             self.gen_basic_event(TransmitDrop,
                              {'affected_node_pair': self.gen_node_pair(),
-                              'delay':integers(min_value=1,max_value=self.time_window_length)}),
+                              'delay':integers(min_value=1,max_value=self.event_window_length)}),
             self.gen_basic_event(DeliveryDuplicate,
                              {'affected_node': (self.gen_node()),
-                              'delay':integers(min_value=1,max_value=self.time_window_length)}))
+                              'delay':integers(min_value=1,max_value=self.event_window_length)}))
 
     def gen_adverse_event(self):
         return one_of(self.gen_network_event(),self.gen_power_event(),self.gen_clock_event())
