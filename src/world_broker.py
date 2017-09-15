@@ -7,7 +7,8 @@ from random import Random
 from heapq import heapify,heappush,heappop
 from events import *
 from node import Node
-from copy import copy
+from copy import deepcopy
+
 
 
 class WorldBroker(GenericStateMachine):
@@ -20,7 +21,9 @@ class WorldBroker(GenericStateMachine):
 
         # Initialize the cluster
         self.node_ids = range(5)
-        conf = {'heartbeat_window': (150,300),'nodes':set(self.node_ids)}
+        conf = {'election_timeout_window': (150,300),
+                'heartbeat_timeout': 100,
+                'nodes':set(self.node_ids)}
 
         # Event Queue
         self.current_time = 0
@@ -112,16 +115,16 @@ class WorldBroker(GenericStateMachine):
         # Add a set of events to the action_queue, an the corresponding events to heal it
         for event in steps:
             reversals = event.reverse()
-            heappush(self.action_queue,event.prioritize())
+            heappush(self.action_queue,event)
             for rev in reversals:
-                heappush(self.action_queue,rev.prioritize())
+                heappush(self.action_queue,rev)
 
         # Run the event loop
         run_until = self.current_time + self.time_window_length
         while self.current_time <= run_until:
             # Handle any event at the current slice in time
 
-            while len(self.action_queue) > 0 and self.action_queue[0][0] == self.current_time:
+            while len(self.action_queue) > 0 and self.action_queue[0].get_start_time() == self.current_time:
                 self.dispatch_event(self.action_queue.pop())
             # Trip timers if we're there
             for node in self.node_ids:
@@ -153,7 +156,15 @@ class WorldBroker(GenericStateMachine):
     # Handle Network Events
 
     def send_to(self,sender,to,data):
-        heappush(self.action_queue,DeliverMessage({'affected_node':to,'start_time':self.current_time + self.message_send_delay+self.network_broker["delay"][(sender, to)], 'data': data, 'sender': sender}))
+        assert(sender != to)
+
+        event_time = self.current_time + self.message_send_delay + self.network_broker['delays'][(sender, to)]
+        event_map = {'affected_node':to,
+                                 'start_time': event_time,
+                                 'data': data,
+                                 'sender': sender}
+
+        heappush(self.action_queue, DeliverMessage(event_map))
 
 TestSet = WorldBroker.TestCase
 
