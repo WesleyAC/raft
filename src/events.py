@@ -21,6 +21,8 @@ class Event:
     def prioritize(self):
         return (self.event_map['start_time'],self)
 
+# --------------------------Network Management------------------------------------
+
 class NetworkEvent(Event):
     def __init__(self,event_map): super().__init__(event_map)
     def handle(self,nodes,network_broker): pass
