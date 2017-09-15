@@ -7,6 +7,13 @@ class Event:
     """
     def __init__(self,event_map):
         self.event_map = copy(event_map)
+    def __lt__(self,other):
+        return self.event_map['start_time'] < other.event_map['start_time']
+    def __eq__(self,other):
+        # WARNING: this completely breaks object equality.
+        return self.event_map['start_time'] == other.event_map['start_time']
+    def get_start_time(self):
+        return self.event_map['start_time']
     def reverse(self): return []
     def window_terminus(self):
         """
@@ -18,8 +25,6 @@ class Event:
         del ret['event_length']
         ret['start_time'] = event_end
         return ret
-    def prioritize(self):
-        return (self.event_map['start_time'],self)
 
 # --------------------------Network Management------------------------------------
 

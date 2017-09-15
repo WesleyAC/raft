@@ -13,7 +13,7 @@ class AppendEntriesResponse:
         self.success = success
 
 class RequestVote:
-    def __init__(self, term, candadate_id, last_log_index, last_log_term):
+    def __init__(self, term, candidate_id, last_log_index, last_log_term):
         self.term = term
         self.candidate_id = candidate_id
         self.last_log_index = last_log_index
