@@ -153,7 +153,7 @@ class WorldBroker(GenericStateMachine):
     # Handle Network Events
 
     def send_to(self,sender,to,data):
-        heappush(self.action_queue,DeliverMessage({'affected_node':to,'start_time':self.current_time + self.message_send_delay, 'data': data, 'sender': sender}))
+        heappush(self.action_queue,DeliverMessage({'affected_node':to,'start_time':self.current_time + self.message_send_delay+self.network_broker["delay"][(sender, to)], 'data': data, 'sender': sender}))
 
 TestSet = WorldBroker.TestCase
 
