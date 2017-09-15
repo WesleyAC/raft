@@ -14,7 +14,7 @@ from copy import deepcopy
 class WorldBroker(GenericStateMachine):
     def __init__(self):
         # Run/Test Settings
-        self.catastrophy_level = 0
+        self.catastrophy_level = 1
         self.time_window_length = 400
         self.event_window_length = 150
         self.message_send_delay = 6
