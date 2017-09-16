@@ -45,29 +45,34 @@ class Node:
         """
         Convert this node to a different type, and make any other needed state changes.
         """
-        print('change_type {}: {} -> {}'.format(self.node_id,self.node_type, to))
-
         assert to == 'Follower' or to == 'Candidate' or to == 'Leader'
+        if to == 'Leader':
+            assert(self.node_type != 'Follower')
+
         self.node_type = to
         if to == 'Follower' or to == 'Candidate':
             self.broker.set_timeout(self.node_id, self.election_timeout)
         elif to == 'Leader':
             self.broker.set_timeout(self.node_id, self.conf['heartbeat_timeout'])
 
-    def update_term(self, term):
+    def update_term(self, term, new_candidate):
         """
         If term is greater than the current term, update the term and make any
         other needed state changes.
+
+        We avoid resetting the node to 'Follower' if we're updating the term
+        because the node is starting a new election.
         """
         if term > self.term:
+            if not new_candidate:
+                self.change_type('Follower')
             self.term = term
-            self.change_type('Follower')
             self.votes_received = set()
             self.voted_for = None
             self.election_timeout = self.calculate_election_timeout()
 
     def receive(self,sender,message):
-        self.update_term(message.term)
+        self.update_term(message.term, False)
         assert type(message) == AppendEntries or \
                type(message) == RequestVote or \
                type(message) == AppendEntriesResponse or \
@@ -96,8 +101,6 @@ class Node:
     def timer_trip(self):
         # TODO: this if statement was added to fix a "compile error". This was not thought through and may be
         # wrong.
-        print('timer_trip {}'.format(self.node_id))
-
         last_logged_term = -1
         last_logged_entry = None
         if len(self.log) > 0:
@@ -106,7 +109,7 @@ class Node:
 
         if not self.is_leader():
             self.change_type('Candidate')
-            self.update_term(self.term+1)
+            self.update_term(self.term+1, True)
             self.votes_received.add(self.node_id)
             self.voted_for = self.node_id
             for node in self.conf['nodes']:
