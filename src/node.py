@@ -64,6 +64,15 @@ class Node:
             self.voted_for = None
             self.election_timout = self.calculate_election_timeout()
 
+        self.term = 0
+        self.log = [] # list[tuple(term, entry)]
+        self.commit_index = 0
+        self.last_applied = 0
+        self.voted_for = None
+        self.node_type = "F"
+        self.votes_received = set()
+        self.election_timeout = self.calculate_election_timeout()
+
     def receive(self,sender,message):
         self.update_term(message.term)
         assert type(message) == AppendEntries or \
