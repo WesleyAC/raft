@@ -64,7 +64,7 @@ class Node:
             self.change_type('Follower')
             self.votes_received = set()
             self.voted_for = None
-            self.election_timout = self.calculate_election_timeout()
+            self.election_timeout = self.calculate_election_timeout()
 
     def receive(self,sender,message):
         self.update_term(message.term)
