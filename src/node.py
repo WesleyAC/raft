@@ -45,6 +45,8 @@ class Node:
         """
         Convert this node to a different type, and make any other needed state changes.
         """
+        print('change_type {}: {} -> {}'.format(self.node_id,self.node_type, to))
+
         assert to == 'Follower' or to == 'Candidate' or to == 'Leader'
         self.node_type = to
         if to == 'Follower' or to == 'Candidate':
@@ -63,15 +65,6 @@ class Node:
             self.votes_received = set()
             self.voted_for = None
             self.election_timout = self.calculate_election_timeout()
-
-        self.term = 0
-        self.log = [] # list[tuple(term, entry)]
-        self.commit_index = 0
-        self.last_applied = 0
-        self.voted_for = None
-        self.node_type = "F"
-        self.votes_received = set()
-        self.election_timeout = self.calculate_election_timeout()
 
     def receive(self,sender,message):
         self.update_term(message.term)
@@ -103,6 +96,8 @@ class Node:
     def timer_trip(self):
         # TODO: this if statement was added to fix a "compile error". This was not thought through and may be
         # wrong.
+        print('timer_trip {}'.format(self.node_id))
+
         last_logged_term = -1
         last_logged_entry = None
         if len(self.log) > 0:
