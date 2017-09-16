@@ -1,7 +1,7 @@
 import unittest
 
 from hypothesis.stateful import GenericStateMachine
-from hypothesis.strategies import tuples,sampled_from,just,integers,one_of,fixed_dictionaries,sets,lists
+from hypothesis.strategies import tuples,sampled_from,just,integers,one_of,fixed_dictionaries,sets,lists,permutations
 
 from random import Random
 from heapq import heapify,heappush,heappop
@@ -58,7 +58,7 @@ class WorldBroker(GenericStateMachine):
                                            max_value=self.time_window_length+self.current_time),
                     'event_length': integers(min_value=1,max_value=self.time_window_length)}
         base_map.update(additional_map)
-        return fixed_dictionaries(base_map).flatmap(event_type)
+        return fixed_dictionaries(base_map).flatmap(lambda x : just(event_type(x)))
 
     def gen_node(self):
         return sampled_from(self.node_ids)
@@ -67,7 +67,8 @@ class WorldBroker(GenericStateMachine):
         return sets(self.gen_node())
 
     def gen_node_pair(self):
-        return tuple((self.gen_node(),self.gen_node()))
+        return permutations(self.node_ids).flatmap(lambda x: just((x[0],x[1])))
+
 
     def gen_node_pairs(self):
         return sets(self.gen_node_pair())
@@ -114,7 +115,7 @@ class WorldBroker(GenericStateMachine):
 
         # Add a set of events to the action_queue, an the corresponding events to heal it
         for event in steps:
-            reversals = event.reverse()
+            reversals = event.backout()
             heappush(self.action_queue,event)
             for rev in reversals:
                 heappush(self.action_queue,rev)
@@ -141,7 +142,7 @@ class WorldBroker(GenericStateMachine):
         elif isinstance(event,PowerEvent):
             if isinstance(event,PowerDown):
                 # Special cross-broker concern, clear timer
-                self.time_broker['node_timers'][event['affected_node']] = None
+                self.time_broker['node_timers'][event.event_map['affected_node']] = None
             event.handle(self.power_broker['up_nodes'],self.power_broker)
         elif isinstance(event,TimerEvent):
             event.handle(self.power_broker['up_nodes'],self.time_broker)
