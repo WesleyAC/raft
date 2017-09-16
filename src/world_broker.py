@@ -9,8 +9,6 @@ from events import *
 from node import Node
 from copy import deepcopy
 
-
-
 class WorldBroker(GenericStateMachine):
     def __init__(self):
         # Run/Test Settings
@@ -68,7 +66,6 @@ class WorldBroker(GenericStateMachine):
 
     def gen_node_pair(self):
         return permutations(self.node_ids).flatmap(lambda x: just((x[0],x[1])))
-
 
     def gen_node_pairs(self):
         return sets(self.gen_node_pair())
