@@ -145,7 +145,9 @@ class PowerDown(PowerEvent):
         node_id = self.event_map['affected_node']
         if node_id not in power_broker['down_nodes']:
             power_broker['down_nodes'][node_id] =  power_broker['up_nodes'][node_id]
-            power_broker['up_nodes'][node_id] = DownNode()
+            # TODO: is up_nodes supposed to represent all nodes? If so, maybe we could call it nodes
+            # If it's only nodes that are up, the commented out line below should be removed.
+            # power_broker['up_nodes'][node_id] = DownNode()
 
 class StopPowerDown(PowerEvent):
     """
