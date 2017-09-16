@@ -117,13 +117,13 @@ class WorldBroker(GenericStateMachine):
     def steps(self):
         return lists(self.gen_adverse_event(),max_size=self.catastrophy_level)
 
-    def execute_step(self, steps):
+    def execute_step(self, adverse_events):
         """
         steps is a list of steps (possibly len() 0)
         """
 
         # Add a set of events to the action_queue, an the corresponding events to heal it
-        for event in steps:
+        for event in adverse_events:
             reversals = event.backout()
             heappush(self.action_queue,event)
             for rev in reversals:
