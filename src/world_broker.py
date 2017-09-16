@@ -13,7 +13,7 @@ from copy import deepcopy
 class WorldBroker(GenericStateMachine):
     def __init__(self):
         # Run/Test Settings
-        self.catastrophy_level = 1
+        self.catastrophy_level = 0
         self.time_window_length = 400
         self.event_window_length = 150
         self.message_send_delay = 6
@@ -23,7 +23,7 @@ class WorldBroker(GenericStateMachine):
         # Initialize the cluster
         self.node_ids = range(5)
         conf = {'election_timeout_window': (150,300),
-                'heartbeat_timeout': 100,
+                'heartbeat_timeout': 50,
                 'nodes':set(self.node_ids)}
 
         # Event Queue
@@ -144,6 +144,13 @@ class WorldBroker(GenericStateMachine):
             self.current_time += 1
 
         self.check_leader_history()
+
+    def teardown(self):
+        if self.catastrophy_level == 0:
+            # self.execute_step(20)
+            # TODO: this check should be stronger.
+            # TODO: heal before checking for other catastrophy levels.
+            assert(len(self.leaders_history) > 0)
 
     # Event Dispatch
     def dispatch_event(self,event):
