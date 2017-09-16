@@ -3,6 +3,7 @@ import unittest
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import tuples,sampled_from,just,integers,one_of,fixed_dictionaries,sets,lists,permutations
 
+import collections
 from random import Random
 from heapq import heapify,heappush,heappop
 from events import *
@@ -19,6 +20,8 @@ class WorldBroker(GenericStateMachine):
         self.event_window_length = 150
         self.message_send_delay = 6
 
+        self.leaders_history = collections.defaultdict(set)
+
         # Initialize the cluster
         self.node_ids = range(5)
         conf = {'election_timeout_window': (150,300),
@@ -34,7 +37,7 @@ class WorldBroker(GenericStateMachine):
         self.file_broker = {k:{} for k in self.node_ids}
 
         # Power Management
-        self.power_broker = {'up_nodes': {k:Node(k,conf,Random(k),self) for k in self.node_ids},
+        self.power_broker = {'up_nodes': {k: Node(k, conf, Random(k), self) for k in self.node_ids},
                              'down_nodes': {}}
 
         # Time Management
@@ -47,7 +50,7 @@ class WorldBroker(GenericStateMachine):
                                'duplicates':{(f,t):0 for f in self.node_ids for t in self.node_ids if t != f}
         }
 
-        # The nodes should be "Brough up" after all the brokers are in place
+        # The nodes should be "Brought up" after all the brokers are in place
         for node in self.power_broker['up_nodes'].values():
             node.setup()
 
@@ -105,6 +108,15 @@ class WorldBroker(GenericStateMachine):
         return one_of(self.gen_network_event(),self.gen_power_event(),self.gen_clock_event())
 
 
+    # Check that we have at most one leader per term.
+    # Also, update leader_history.
+    def check_leader_history(self):
+        for node in self.power_broker['up_nodes'].values():
+            if node.is_leader():
+                self.leaders_history[node.term].add(node.node_id)
+        for term in self.leaders_history:
+            assert(len(self.leaders_history[term] <= 1))
+
     def steps(self):
         return lists(self.gen_adverse_event(),max_size=self.catastrophy_level)
 
@@ -134,6 +146,7 @@ class WorldBroker(GenericStateMachine):
                         self.power_broker['up_nodes'][node].timer_trip()
             self.current_time += 1
 
+        self.check_leader_history()
 
     # Event Dispatch
     def dispatch_event(self,event):
