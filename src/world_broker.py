@@ -14,7 +14,7 @@ class WorldBroker(GenericStateMachine):
     def __init__(self):
         # Run/Test Settings
         self.catastrophy_level = 0
-        self.time_window_length = 400
+        self.time_window_length = 700
         self.event_window_length = 150
         self.message_send_delay = 6
 
@@ -112,7 +112,7 @@ class WorldBroker(GenericStateMachine):
             if node.is_leader():
                 self.leaders_history[node.term].add(node.node_id)
         for term in self.leaders_history:
-            assert(len(self.leaders_history[term] <= 1))
+            assert(len(self.leaders_history[term]) <= 1)
 
     def steps(self):
         return lists(self.gen_adverse_event(),max_size=self.catastrophy_level)
@@ -146,7 +146,7 @@ class WorldBroker(GenericStateMachine):
         self.check_leader_history()
 
     def teardown(self):
-        if self.catastrophy_level == 0:
+        if self.catastrophy_level == 0 and self.current_time > self.time_window_length / 2:
             # self.execute_step(20)
             # TODO: this check should be stronger.
             # TODO: heal before checking for other catastrophy levels.
