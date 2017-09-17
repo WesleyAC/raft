@@ -53,6 +53,13 @@ class WorldBroker(GenericStateMachine):
             node.setup()
 
 
+    def get_node_for_testing(self, node_id):
+        '''Return the canonical version of a node given its node_id.
+        For testing purposes only. This is required for verifying invariants because the node in 'nodes' can be a dummy
+        DownNode which has no state and cannot be queried.'''
+
+        return self.power_broker['down_nodes'].get(node_id,self.power_broker['nodes'][node_id])
+
     # Begin Helper functions for event generation
     def gen_basic_event(self,event_type,additional_map):
         base_map = {'start_time': integers(min_value=self.current_time,
@@ -108,7 +115,8 @@ class WorldBroker(GenericStateMachine):
     # Check that we have at most one leader per term.
     # Also, update leader_history.
     def check_leader_history(self):
-        for node in self.power_broker['nodes'].values():
+        for node_id in self.power_broker['nodes']:
+            node = self.get_node_for_testing(node_id)
             if node.is_leader():
                 self.leaders_history[node.term].add(node.node_id)
         for term in self.leaders_history:
