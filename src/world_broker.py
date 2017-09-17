@@ -35,7 +35,7 @@ class WorldBroker(GenericStateMachine):
         self.file_broker = {k:{} for k in self.node_ids}
 
         # Power Management
-        self.power_broker = {'up_nodes': {k: Node(k, conf, Random(k), self) for k in self.node_ids},
+        self.power_broker = {'nodes': {k: Node(k, conf, Random(k), self) for k in self.node_ids},
                              'down_nodes': {}}
 
         # Time Management
@@ -49,7 +49,7 @@ class WorldBroker(GenericStateMachine):
         }
 
         # The nodes should be "Brought up" after all the brokers are in place
-        for node in self.power_broker['up_nodes'].values():
+        for node in self.power_broker['nodes'].values():
             node.setup()
 
 
@@ -108,7 +108,7 @@ class WorldBroker(GenericStateMachine):
     # Check that we have at most one leader per term.
     # Also, update leader_history.
     def check_leader_history(self):
-        for node in self.power_broker['up_nodes'].values():
+        for node in self.power_broker['nodes'].values():
             if node.is_leader():
                 self.leaders_history[node.term].add(node.node_id)
         for term in self.leaders_history:
@@ -140,7 +140,7 @@ class WorldBroker(GenericStateMachine):
             for node in self.node_ids:
                 if self.time_broker['node_timers'][node]:
                     if self.current_time + self.time_broker['node_time_offsets'][node] > self.time_broker['node_timers'][node]:
-                        self.power_broker['up_nodes'][node].timer_trip()
+                        self.power_broker['nodes'][node].timer_trip()
             self.current_time += 1
 
         self.check_leader_history()
@@ -155,14 +155,14 @@ class WorldBroker(GenericStateMachine):
     # Event Dispatch
     def dispatch_event(self,event):
         if isinstance(event,NetworkEvent):
-            event.handle(self.power_broker['up_nodes'],self.network_broker)
+            event.handle(self.power_broker['nodes'],self.network_broker)
         elif isinstance(event,PowerEvent):
             if isinstance(event,PowerDown):
                 # Special cross-broker concern, clear timer
                 self.time_broker['node_timers'][event.event_map['affected_node']] = None
-            event.handle(self.power_broker['up_nodes'],self.power_broker)
+            event.handle(self.power_broker['nodes'],self.power_broker)
         elif isinstance(event,TimerEvent):
-            event.handle(self.power_broker['up_nodes'],self.time_broker)
+            event.handle(self.power_broker['nodes'],self.time_broker)
 
     # Handle Timer Events
 
