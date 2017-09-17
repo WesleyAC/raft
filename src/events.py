@@ -144,10 +144,10 @@ class PowerDown(PowerEvent):
     def handle(self,nodes,power_broker):
         node_id = self.event_map['affected_node']
         if node_id not in power_broker['down_nodes']:
-            power_broker['down_nodes'][node_id] =  power_broker['up_nodes'][node_id]
-            # TODO: is up_nodes supposed to represent all nodes? If so, maybe we could call it nodes
+            power_broker['down_nodes'][node_id] =  power_broker['nodes'][node_id]
+            # TODO: is nodes supposed to represent all nodes? If so, maybe we could call it nodes
             # If it's only nodes that are up, the commented out line below should be removed.
-            # power_broker['up_nodes'][node_id] = DownNode()
+            # power_broker['nodes'][node_id] = DownNode()
 
 class StopPowerDown(PowerEvent):
     """
@@ -157,7 +157,7 @@ class StopPowerDown(PowerEvent):
     def handle(self,nodes,power_broker):
         node_id = self.event_map['affected_node']
         if node_id in power_broker['down_nodes']:
-            power_broker['up_nodes'][node_id] = power_broker['down_nodes'][node_id]
+            power_broker['nodes'][node_id] = power_broker['down_nodes'][node_id]
             del power_broker['down_nodes'][node_id]
 
 
@@ -165,7 +165,7 @@ class HealPower(PowerEvent):
     def __init__(self,event_map): super().__init__(event_map)
     def handle(self,nodes,power_broker):
         for node_id,node in power_broker['down_nodes']:
-            power_broker['up_nodes'][node_id] = node
+            power_broker['nodes'][node_id] = node
             del power_broker['down_nodes'][node_id]
 
 #------------------------ Time Management---------------------------------------
