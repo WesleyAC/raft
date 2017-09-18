@@ -56,26 +56,30 @@ class NetworkEvent(Event):
         pass
 
 
-class DeliveryDrop(NetworkEvent):
-    "Drops all delivery to a specified node"
+class SendDrop(NetworkEvent):
+    "Drops all delivery sent from a specified node"
     def backout(self):
-        return [StopDeliveryDrop(self.window_terminus())]
+        return [StopSendDrop(self.window_terminus())]
 
 
-class StopDeliveryDrop(NetworkEvent):
+class StopSendDrop(NetworkEvent):
     "Backs out the DeliveryDrop event"
     pass
 
-class DeliveryDelay(NetworkEvent):
-    "Delays all messages delivered to the specified node"
+
+class SendDelay(NetworkEvent):
+    "Delays all messages sent from the specified node"
 
     def backout(self):
-        return [StopDeliveryDelay(self.window_terminus())]
+        return [StopSendDelay(self.window_terminus())]
 
+    def handle(self, nodes, network_broker):
+       
 
-class StopDeliveryDelay(NetworkEvent):
-    "Backs out the DeliveryDelay event"
+class StopSendDelay(NetworkEvent):
+    "Backs out the SendDelay event"
     pass
+
 
 class ReceiveDrop(NetworkEvent):
     "Drops all messages the specified node would otherwise receive"
@@ -116,12 +120,12 @@ class StopTransmitDrop(NetworkEvent):
         network_broker['connections'].add(pair)
 
 
-class DeliveryDuplicate(NetworkEvent):
+class SendDuplicate(NetworkEvent):
     """
     DeliveryDuplicates Represents all messaages that a node attempts to deliver being duplicated.
     """
     def backout(self):
-        return [StopDeliveryDuplicate(self.window_terminus())]
+        return [StopSendDuplicate(self.window_terminus())]
 
     def handle(self, nodes, network_broker):
         from_node = self.event_map['affected_node']
@@ -130,7 +134,7 @@ class DeliveryDuplicate(NetworkEvent):
                 network_broker['duplicates'][(from_node, to_node)] += 1
 
 
-class StopDeliveryDuplicate(NetworkEvent):
+class StopSendDuplicate(NetworkEvent):
     "Backs out the DeliveryDuplicate event"
     def handle(self, nodes, network_broker):
         from_node = self.event_map['affected_node']
