@@ -80,7 +80,7 @@ class StopDeliveryDelay(NetworkEvent):
 class ReceiveDrop(NetworkEvent):
     "Drops all messages the specified node would otherwise receive"
     def backout(self):
-        return [StopDeliveryDrop(self.window_terminus())]
+        return [StopReceiveDrop(self.window_terminus())]
 
     def handle(self, nodes, network_broker):
         for to_node in self.event_map['affected_nodes']:
