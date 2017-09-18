@@ -45,6 +45,12 @@ class Node:
         """
         Convert this node to a different type, and make any other needed state changes.
         """
+        # TODO: always log instead of logging when different?
+        if self.node_type != to:
+            self.broker.log({'term': self.term,
+                             'node_type': self.node_type,
+                             'to_type': to,
+                             'log_type': 'change_type'})
         assert to == 'Follower' or to == 'Candidate' or to == 'Leader'
         if to == 'Leader':
             assert(self.node_type != 'Follower')

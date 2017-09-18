@@ -20,6 +20,8 @@ class WorldBroker(GenericStateMachine):
 
         self.leaders_history = collections.defaultdict(set)
 
+        self.test_logging = []
+
         # Initialize the cluster
         self.node_ids = range(5)
         conf = {'election_timeout_window': (150,300),
@@ -52,6 +54,14 @@ class WorldBroker(GenericStateMachine):
         for node in self.power_broker['nodes'].values():
             node.setup()
 
+    def log(self,entry):
+        self.test_logging.append(entry)
+
+    # TODO: handle other types.
+    def print_log(self):
+        for entry in self.test_logging:
+            if entry['log_type'] == 'change_type':
+                print("{}: {}->{}".format(entry['term'], entry['node_type'], entry['to_type']))
 
     def get_node_for_testing(self, node_id):
         '''Return the canonical version of a node given its node_id.
@@ -120,7 +130,10 @@ class WorldBroker(GenericStateMachine):
             if node.is_leader():
                 self.leaders_history[node.term].add(node.node_id)
         for term in self.leaders_history:
-            assert(len(self.leaders_history[term]) <= 1)
+            if not len(self.leaders_history[term]) <= 1:
+                self.print_log()
+                print(self.leaders_history)
+                assert(False)
 
     def steps(self):
         return lists(self.gen_adverse_event(),max_size=self.catastrophy_level)
