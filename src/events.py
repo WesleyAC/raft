@@ -67,14 +67,16 @@ class SendDrop(NetworkEvent):
     def backout(self):
         return [StopSendDrop(self.window_terminus())]
 
-    def handle(self, nodes, network_broker, from_node):
+    def handle(self, nodes, network_broker):
+        from_node = self.event_map['sender']
         for to_node in self.event_map['affected_nodes']:
             network_broker['connections'].discard((from_node, to_node))
 
 
 class StopSendDrop(NetworkEvent):
     "Backs out the DeliveryDrop event"
-    def handle(self, nodes, network_broker, from_node):
+    def handle(self, nodes, network_broker):
+        from_node = self.event_map['sender']
         for to_node in self.event_map['affected_nodes']:
             network_broker['connections'].add((from_node, to_node))
 
@@ -85,16 +87,18 @@ class SendDelay(NetworkEvent):
     def backout(self):
         return [StopSendDelay(self.window_terminus())]
 
-    def handle(self, nodes, network_broker, from_node): # added from_node..
+    def handle(self, nodes, network_broker): 
         delays_dict = network_broker['delays']
+        from_node = self.event_map['sender']
         for to_node in self.event_map['affected_nodes']:
             delays_dict[(from_node, to_node)] += 1 # Delay by 1, not sure if this is the amount we want to increment
 
 
 class StopSendDelay(NetworkEvent):
     "Backs out the SendDelay event"
-    def handle(self, nodes, network_broker, from_node):
+    def handle(self, nodes, network_broker):
         delays_dict = network_broker['delays']
+        from_node = self.event_map['sender']
         for to_node in self.event_map['affected_nodes']:
             delays_dict[(from_node, to_node)] -= 1
 
