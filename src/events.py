@@ -53,7 +53,7 @@ class StopDeliveryDelay(NetworkEvent):
 
 class ReceiveDrop(NetworkEvent):
     def __init__(self,event_map): super().__init__(event_map)
-    def backout(self): return [StopDeliveryDrop(self.window_terminus())]
+    def backout(self): return [StopReceiveDrop(self.window_terminus())]
     def handle(self,nodes,network_broker):
         for to_node in self.event_map['affected_nodes']:
             for from_node in nodes:
