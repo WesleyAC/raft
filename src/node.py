@@ -68,6 +68,7 @@ class Node:
         #-TODO always log instead of logging when different?
         if self.node_type != new_type:
             self.broker.log({'term': self.term,
+                             'node': self.node_id,
                              'node_type': self.node_type,
                              'to_type': new_type,
                              'log_type': 'change_type'})
@@ -97,6 +98,7 @@ class Node:
             self.votes_received = set()
             self.voted_for = None
             self.election_timeout = self.calculate_election_timeout()
+            self.broker.log({'term': self.term, 'node': self.node_id, 'log_type': 'update_term'})
 
     def receive(self, sender, message):
         "TODO"
@@ -118,10 +120,12 @@ class Node:
             else:
                 self.broker.send_to(self.node_id, sender,
                                     RequestVoteResponse(self.term, True))
+                self.voted_for = sender
+                self.broker.log({'event_type': 'voted_for', 'node': self.node_id, 'voted_for': sender})
         elif isinstance(message, AppendEntriesResponse):
             pass
         elif isinstance(message, RequestVoteResponse):
-            if message.vote_granted:
+            if message.vote_granted and self.is_candidate():
                 self.votes_received.add(sender)
                 if len(self.votes_received) > math.floor(len(self.conf['nodes']) / 2):
                     self.change_type('Leader')
@@ -141,6 +145,7 @@ class Node:
             self.update_term(self.term + 1, True)
             self.votes_received.add(self.node_id)
             self.voted_for = self.node_id
+            self.broker.log({"log_type": "voted_for", "voted_for": self.node_id, "node": self.node_id})
             for node in self.conf['nodes']:
                 if self.node_id != node:
                     self.broker.send_to(self.node_id, node,
