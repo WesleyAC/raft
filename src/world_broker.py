@@ -23,7 +23,7 @@ class WorldBroker(GenericStateMachine):
     "TODO"
     def __init__(self):
         # Run/Test Settings
-        self.catastrophy_level = 0
+        self.catastrophy_level = 1
         self.time_window_length = 700
         self.event_window_length = 150
         self.message_send_delay = 6
@@ -77,7 +77,11 @@ class WorldBroker(GenericStateMachine):
         for entry in self.test_logging:
             if entry['log_type'] == 'change_type':
                 print(
-                    "{}: {}->{}".format(entry['term'], entry['node_type'], entry['to_type']))
+                    "Term #{}, Node #{}: {}->{}".format(entry['term'], entry['node'], entry['node_type'], entry['to_type']))
+            elif entry['log_type'] == 'update_term':
+                print("Node #{} increased term to {}".format(entry['node'], entry['term']))
+            elif entry['log_type'] == 'voted_for':
+                print("Node #{} voted for node #{}".format(entry['node'], entry['voted_for']))
 
     def get_node_for_testing(self, node_id):
         '''Return the canonical version of a node given its node_id.
