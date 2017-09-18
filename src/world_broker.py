@@ -127,11 +127,11 @@ class WorldBroker(GenericStateMachine):
     def gen_network_event(self):
         "TODO"
         return one_of(
-            self.gen_basic_event(DeliveryDelay,
+            self.gen_basic_event(SendDelay,
                                  {'affected_nodes': self.gen_node_set(),
                                   'delay': integers(min_value=1,
                                                     max_value=self.event_window_length)}),
-            self.gen_basic_event(DeliveryDrop,
+            self.gen_basic_event(SendDrop,
                                  {'affected_nodes': self.gen_node_set()}),
             self.gen_basic_event(ReceiveDrop,
                                  {'affected_nodes': self.gen_node_set(),
@@ -141,7 +141,7 @@ class WorldBroker(GenericStateMachine):
                                  {'affected_node_pair': self.gen_node_pair(),
                                   'delay': integers(min_value=1,
                                                     max_value=self.event_window_length)}),
-            self.gen_basic_event(DeliveryDuplicate,
+            self.gen_basic_event(SendDuplicate,
                                  {'affected_node': (self.gen_node()),
                                   'delay': integers(min_value=1,
                                                     max_value=self.event_window_length)}))
