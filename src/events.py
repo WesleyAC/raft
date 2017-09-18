@@ -43,9 +43,6 @@ class DeliveryDelay(NetworkEvent):
     def __init__(self,event_map):
         super().__init__(event_map)
 
-    def prn(self):
-        print(self.event_map)
-
     def backout(self):
         return [StopDeliveryDelay(self.window_terminus())]
     
