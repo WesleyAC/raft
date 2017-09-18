@@ -36,6 +36,7 @@ class DeliveryDrop(NetworkEvent):
     def __init__(self,event_map):
         super().__init__(event_map)
     def backout(self): return [StopDeliveryDrop(self.window_terminus())]
+
 class StopDeliveryDrop(NetworkEvent):
     def __init__(self,event_map): super().__init__(event_map)
 
@@ -45,12 +46,10 @@ class DeliveryDelay(NetworkEvent):
 
     def backout(self):
         return [StopDeliveryDelay(self.window_terminus())]
-    
 
 class StopDeliveryDelay(NetworkEvent):
     def __init__(self,event_map):
         super().__init__(event_map)
-
 
 class ReceiveDrop(NetworkEvent):
     def __init__(self,event_map): super().__init__(event_map)
@@ -59,13 +58,13 @@ class ReceiveDrop(NetworkEvent):
         for to_node in self.event_map['affected_nodes']:
             for from_node in nodes:
                 network_broker['connections'].discard((from_node,to_node))
+
 class StopReceiveDrop(NetworkEvent):
     def __init__(self,event_map): super().__init__(event_map)
     def handle(self,nodes,network_broker):
         for to_id in self.event_map['affected_nodes']:
             for from_node in nodes:
                 network_broker['connections'].add((from_node,to_node))
-
 
 class TransmitDrop(NetworkEvent):
     """
@@ -82,7 +81,6 @@ class StopTransmitDrop(NetworkEvent):
     def handle(self,nodes,network_broker):
         pair = self.event_map['affected_node_pair']
         network_broker['connections'].add(pair)
-
 
 class DeliveryDuplicate(NetworkEvent):
     """
@@ -116,7 +114,6 @@ class DeliverMessage(NetworkEvent):
         to_node = self.event_map['affected_node']
         if (from_node,to_node) in network_broker['connections']:
             nodes[to_node].receive(from_node,self.event_map['data'])
-
 
 class HealNetwork(NetworkEvent):
     def __init__(self,event_map): super().__init__(event_map)
