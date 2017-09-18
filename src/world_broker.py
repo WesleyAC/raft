@@ -171,7 +171,6 @@ class WorldBroker(GenericStateMachine):
 
     def teardown(self):
         if self.catastrophy_level == 0 and self.current_time > self.time_window_length / 2:
-            # self.execute_step(20)
             # TODO: this check should be stronger.
             # TODO: heal before checking for other catastrophy levels.
             assert(len(self.leaders_history) > 0)
