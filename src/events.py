@@ -72,8 +72,6 @@ class SendDelay(NetworkEvent):
 
     def backout(self):
         return [StopSendDelay(self.window_terminus())]
-
-    def handle(self, nodes, network_broker):
        
 
 class StopSendDelay(NetworkEvent):
