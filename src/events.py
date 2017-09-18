@@ -13,16 +13,20 @@ class Event(object):
     def __init__(self, event_map):
         self.event_map = copy(event_map)
 
+
     def __lt__(self, other):
         return self.event_map['start_time'] < other.event_map['start_time']
+
 
     def __eq__(self, other):
         # WARNING: this completely breaks object equality.
         return self.event_map['start_time'] == other.event_map['start_time']
 
+
     def get_start_time(self):
         "Gets the start time of an event"
         return self.event_map['start_time']
+
 
     # pylint: disable=no-self-use
     def backout(self):
@@ -30,6 +34,7 @@ class Event(object):
         backout returns a list of events necessary to back out the event from the cluster.
         """
         return []
+
 
     def window_terminus(self):
         """
@@ -41,6 +46,7 @@ class Event(object):
         del ret['event_length']
         ret['start_time'] = event_end
         return ret
+
 
 # --------------------------Network Management------------------------------------
 
@@ -61,10 +67,16 @@ class SendDrop(NetworkEvent):
     def backout(self):
         return [StopSendDrop(self.window_terminus())]
 
+    def handle(self, nodes, network_broker, from_node):
+        for to_node in self.event_map['affected_nodes']:
+            network_broker['connections'].discard((from_node, to_node))
+
 
 class StopSendDrop(NetworkEvent):
     "Backs out the DeliveryDrop event"
-    pass
+    def handle(self, nodes, network_broker, from_node):
+        for to_node in self.event_map['affected_nodes']:
+            network_broker['connections'].add((from_node, to_node))
 
 
 class SendDelay(NetworkEvent):
@@ -73,12 +85,18 @@ class SendDelay(NetworkEvent):
     def backout(self):
         return [StopSendDelay(self.window_terminus())]
 
-    def handle(self, nodes, network_broker):
-       
+    def handle(self, nodes, network_broker, from_node): # added from_node..
+        delays_dict = network_broker['delays']
+        for to_node in self.event_map['affected_nodes']:
+            delays_dict[(from_node, to_node)] += 1 # Delay by 1, not sure if this is the amount we want to increment
+
 
 class StopSendDelay(NetworkEvent):
     "Backs out the SendDelay event"
-    pass
+    def handle(self, nodes, network_broker, from_node):
+        delays_dict = network_broker['delays']
+        for to_node in self.event_map['affected_nodes']:
+            delays_dict[(from_node, to_node)] -= 1
 
 
 class ReceiveDrop(NetworkEvent):
