@@ -204,10 +204,13 @@ class WorldBroker(GenericStateMachine):
 
     def teardown(self):
         "TODO"
-        if self.catastrophy_level == 0 and self.current_time > self.time_window_length / 2:
+        if self.catastrophy_level < 5 and self.current_time > self.time_window_length / 2:
+        # if self.current_time > self.time_window_length / 2:
             #-TODO: this check should be stronger.
             #-TODO: heal before checking for other catastrophy levels.
-            assert self.leaders_history
+            if not self.leaders_history:
+                self.print_log()
+                assert(False)
 
     # Event Dispatch
     def dispatch_event(self, event):
