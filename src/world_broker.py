@@ -22,18 +22,18 @@ from node import Node
 # pylint: disable=too-many-instance-attributes
 class WorldBroker(GenericStateMachine):
     "TODO"
-    def __init__(self):
+    def __init__(self, log=None, catastrophy_level=0, ms_per_step=700, max_ms_per_event=400):
         # Run/Test Settings
-        self.catastrophy_level = 1
-        self.time_window_length = 700
-        self.event_window_length = 150
-        self.message_send_delay = 10
+        self.catastrophy_level = catastrophy_level
+        self.time_window_length = ms_per_step
+        self.event_window_length = max_ms_per_event
+        self.message_send_delay = 6
 
         self.delays = []
         self.delay_index = 0
         self.leaders_history = collections.defaultdict(set)
 
-        self.test_logging = []
+        self.test_logging = log or []
 
         # Initialize the cluster
         self.node_ids = range(5)
@@ -71,20 +71,9 @@ class WorldBroker(GenericStateMachine):
             node.setup()
 
     def log(self, entry):
-        "TODO"
+        "Updates a submitted entry with information about the current time, and appends it"
+        entry['global_time'] = self.current_time
         self.test_logging.append(entry)
-
-    #-TODO: handle other types.
-    def print_log(self):
-        "TODO"
-        for entry in self.test_logging:
-            if entry['log_type'] == 'change_type':
-                print(
-                    "Term #{}, Node #{}: {}->{}".format(entry['term'], entry['node'], entry['node_type'], entry['to_type']))
-            elif entry['log_type'] == 'update_term':
-                print("Node #{} increased term to {}".format(entry['node'], entry['term']))
-            elif entry['log_type'] == 'voted_for':
-                print("Node #{} voted for node #{}".format(entry['node'], entry['voted_for']))
 
     def get_node_for_testing(self, node_id):
         '''Return the canonical version of a node given its node_id.
@@ -167,7 +156,6 @@ class WorldBroker(GenericStateMachine):
                 self.leaders_history[node.term].add(node.node_id)
         for term in self.leaders_history:
             if not len(self.leaders_history[term]) <= 1:
-                self.print_log()
                 print(self.leaders_history)
                 assert False
 
@@ -203,11 +191,13 @@ class WorldBroker(GenericStateMachine):
             while self.action_queue and self.action_queue[0].get_start_time() == self.current_time:
                 self.dispatch_event(heappop(self.action_queue))
             # Trip timers if timer is past timeout.
-            for node in self.node_ids:
-                if self.time_broker['node_timers'][node]:
-                    adjusted_time = self.current_time + self.time_broker['node_time_offsets'][node]
-                    if adjusted_time > self.time_broker['node_timers'][node]:
-                        self.power_broker['nodes'][node].timer_trip()
+            for node_id in self.node_ids:
+                if self.time_broker['node_timers'][node_id]:
+                    adjusted_time = self.current_time \
+                                    + self.time_broker['node_time_offsets'][node_id]
+                    if adjusted_time > self.time_broker['node_timers'][node_id]:
+                        self.log({'event_type':'timer_trip', 'affected_node':node_id})
+                        self.power_broker['nodes'][node_id].timer_trip()
             self.current_time += 1
             self.check_leader_history()
 
@@ -215,17 +205,17 @@ class WorldBroker(GenericStateMachine):
 
     def teardown(self):
         "TODO"
-        if self.catastrophy_level < 5 and self.current_time > self.time_window_length / 2:
+        if self.current_time > self.time_window_length / 2:
         # if self.current_time > self.time_window_length / 2:
             #-TODO: this check should be stronger.
             #-TODO: heal before checking for other catastrophy levels.
             if not self.leaders_history:
-                self.print_log()
-                assert(False)
+                assert False
 
     # Event Dispatch
     def dispatch_event(self, event):
         "TODO"
+        self.log(event.event_map)
         if isinstance(event, NetworkEvent):
             event.handle(self.power_broker['nodes'], self.network_broker)
         elif isinstance(event, PowerEvent):

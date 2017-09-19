@@ -40,6 +40,14 @@ class Node:
         self.votes_received = set()
         self.election_timeout = self.calculate_election_timeout()
 
+
+    def test_log(self, event):
+        "This logs events for debugging purposes"
+        assert 'event_type' in event
+        event['originating_node'] = self.node_id
+        event['current_term'] = self.term
+        event['current_type'] = self.node_type
+
     def calculate_election_timeout(self):
         " TODO "
         return self.rng.randint(self.conf['election_timeout_window'][0],
@@ -67,11 +75,8 @@ class Node:
         """
         #-TODO always log instead of logging when different?
         if self.node_type != new_type:
-            self.broker.log({'term': self.term,
-                             'node': self.node_id,
-                             'node_type': self.node_type,
-                             'to_type': new_type,
-                             'log_type': 'change_type'})
+            self.test_log({'to_type': new_type,
+                           'event_type': 'change_type'})
         assert new_type == 'Follower' or new_type == 'Candidate' or new_type == 'Leader'
         if new_type == 'Leader':
             assert self.node_type != 'Follower'
@@ -98,7 +103,7 @@ class Node:
             self.votes_received = set()
             self.voted_for = None
             self.election_timeout = self.calculate_election_timeout()
-            self.broker.log({'term': self.term, 'node': self.node_id, 'log_type': 'update_term'})
+            self.test_log({'event_type': 'update_term'})
 
     def receive(self, sender, message):
         "TODO"
@@ -121,7 +126,7 @@ class Node:
                 self.broker.send_to(self.node_id, sender,
                                     RequestVoteResponse(self.term, True))
                 self.voted_for = sender
-                self.broker.log({'log_type': 'voted_for', 'node': self.node_id, 'voted_for': sender})
+                self.test_log({'event_type': 'cast_vote', 'voted_for': sender})
         elif isinstance(message, AppendEntriesResponse):
             pass
         elif isinstance(message, RequestVoteResponse):
@@ -145,7 +150,7 @@ class Node:
             self.update_term(self.term + 1, True)
             self.votes_received.add(self.node_id)
             self.voted_for = self.node_id
-            self.broker.log({"log_type": "voted_for", "voted_for": self.node_id, "node": self.node_id})
+            self.test_log({"event_type": "cast_vote", "voted_for": self.node_id})
             for node in self.conf['nodes']:
                 if self.node_id != node:
                     self.broker.send_to(self.node_id, node,
