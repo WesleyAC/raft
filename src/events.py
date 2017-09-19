@@ -12,6 +12,7 @@ class Event(object):
 
     def __init__(self, event_map):
         self.event_map = copy(event_map)
+        self.event_map['event_type'] = self.__class__.__name__
 
     def __lt__(self, other):
         return self.event_map['start_time'] < other.event_map['start_time']
