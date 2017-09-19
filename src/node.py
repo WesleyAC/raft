@@ -121,7 +121,7 @@ class Node:
                 self.broker.send_to(self.node_id, sender,
                                     RequestVoteResponse(self.term, True))
                 self.voted_for = sender
-                self.broker.log({'event_type': 'voted_for', 'node': self.node_id, 'voted_for': sender})
+                self.broker.log({'log_type': 'voted_for', 'node': self.node_id, 'voted_for': sender})
         elif isinstance(message, AppendEntriesResponse):
             pass
         elif isinstance(message, RequestVoteResponse):
