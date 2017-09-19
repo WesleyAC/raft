@@ -4,13 +4,14 @@ The main emulator of the world, and bootstrapper of tests.
 
 import unittest
 import collections
-from random import Random
+from random import randint, Random
 from heapq import heappush, heappop
 
 
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import sampled_from, just, integers, one_of
 from hypothesis.strategies import fixed_dictionaries, sets, lists, permutations
+import hypothesis.strategies
 
 # pylint: disable=unused-wildcard-import
 # pylint: disable=wildcard-import
@@ -28,6 +29,8 @@ class WorldBroker(GenericStateMachine):
         self.event_window_length = 150
         self.message_send_delay = 6
 
+        self.delays = []
+        self.delay_index = 0
         self.leaders_history = collections.defaultdict(set)
 
         self.test_logging = []
@@ -170,9 +173,9 @@ class WorldBroker(GenericStateMachine):
 
     def steps(self):
         "TODO"
-        delays = just([])
+        delays = lists(integers(1, self.message_send_delay))
         adverse_events = lists(self.gen_adverse_event(), max_size=self.catastrophy_level)
-        randomness = {'delays': just([]), 'adverse_events': adverse_events}
+        randomness = {'delays': delays, 'adverse_events': adverse_events}
         return fixed_dictionaries(randomness)
 
     # pylint: disable=arguments-differ
@@ -180,6 +183,10 @@ class WorldBroker(GenericStateMachine):
         """
         steps is a list of steps (possibly len() 0)
         """
+
+        # TODO: this seems like a bad way to get randomness.
+        self.delays = randomness['delays']
+        self.delay_index = 0
 
         # Add a set of events to the action_queue, an the corresponding events to heal it
         for event in randomness['adverse_events']:
@@ -246,8 +253,12 @@ class WorldBroker(GenericStateMachine):
         "TODO"
         assert origin != destination
 
-        event_time = self.current_time + self.message_send_delay + \
-            self.network_broker['delays'][(origin, destination)]
+        delay = self.message_send_delay
+        if self.delays:
+            delay = self.delays[self.delay_index]
+            self.delay_index = (self.delay_index + 1) % len(self.delays)
+
+        event_time = self.current_time + delay + self.network_broker['delays'][(origin, destination)]
         event_map = {'affected_node': destination,
                      'start_time': event_time,
                      'data': data,
