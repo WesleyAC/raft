@@ -199,8 +199,9 @@ class WorldBroker(GenericStateMachine):
                     if adjusted_time > self.time_broker['node_timers'][node]:
                         self.power_broker['nodes'][node].timer_trip()
             self.current_time += 1
+            self.check_leader_history()
 
-        self.check_leader_history()
+
 
     def teardown(self):
         "TODO"
