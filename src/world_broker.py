@@ -27,7 +27,7 @@ class WorldBroker(GenericStateMachine):
         self.catastrophy_level = 1
         self.time_window_length = 700
         self.event_window_length = 150
-        self.message_send_delay = 6
+        self.message_send_delay = 10
 
         self.delays = []
         self.delay_index = 0
@@ -253,7 +253,7 @@ class WorldBroker(GenericStateMachine):
         "TODO"
         assert origin != destination
 
-        delay = self.message_send_delay
+        delay = 1
         if self.delays:
             delay = self.delays[self.delay_index]
             self.delay_index = (self.delay_index + 1) % len(self.delays)
