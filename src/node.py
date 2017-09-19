@@ -123,8 +123,6 @@ class Node:
                 self.voted_for = sender
                 self.broker.log({'log_type': 'voted_for', 'node': self.node_id, 'voted_for': sender})
         elif isinstance(message, AppendEntriesResponse):
-            ### 4. When the entry is safely replicated, the leader applies the entry to its state machine
-            ### 5. Returns the result of that execution to the client 
             pass
         elif isinstance(message, RequestVoteResponse):
             if message.vote_granted and self.is_candidate():
@@ -154,8 +152,6 @@ class Node:
                                         RequestVote(self.term, self.node_id,
                                                     len(self.log), last_logged_term))
         else:
-            ### 2. The leader gets the client request and appends the command to its log as a new entry
-            ### 3. Then issues other nodes to replicate the entry (so it should be something else not [])
             for node in self.conf['nodes']:
                 if self.node_id != node:
                     self.broker.send_to(self.node_id, node,
