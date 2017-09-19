@@ -4,7 +4,7 @@ The main emulator of the world, and bootstrapper of tests.
 
 import unittest
 import collections
-from random import randint, Random
+from random import Random
 from heapq import heappush, heappop
 
 
