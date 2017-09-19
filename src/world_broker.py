@@ -7,7 +7,6 @@ import collections
 from random import Random
 from heapq import heappush, heappop
 
-
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import sampled_from, just, integers, one_of
 from hypothesis.strategies import fixed_dictionaries, sets, lists, permutations
