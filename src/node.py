@@ -74,7 +74,6 @@ class Node:
         """
         Convert this node to a different type, and make any other needed state changes.
         """
-        print("Type is a-changing")
         self.test_log({'event_type':'change_type', 'to':new_type})
         #-TODO always log instead of logging when different?
         if self.node_type != new_type:
