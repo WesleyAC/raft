@@ -73,6 +73,7 @@ class Node:
         """
         Convert this node to a different type, and make any other needed state changes.
         """
+        self.test_log({'event_type':'change_type', 'to':new_type})
         #-TODO always log instead of logging when different?
         if self.node_type != new_type:
             self.test_log({'to_type': new_type,
@@ -96,6 +97,7 @@ class Node:
         We avoid resetting the node to 'Follower' if we're updating the term
         because the node is starting a new election.
         """
+        self.test_log({'event_type':'update_term', 'new_term':term, 'new_candidate':new_candidate})
         if term > self.term:
             if not new_candidate:
                 self.change_type('Follower')
