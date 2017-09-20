@@ -47,6 +47,7 @@ class Node:
         event['originating_node'] = self.node_id
         event['current_term'] = self.term
         event['current_type'] = self.node_type
+        self.broker.log(event)
 
     def calculate_election_timeout(self):
         " TODO "
