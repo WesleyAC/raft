@@ -234,3 +234,10 @@ class HealTimer(TimerEvent):
     def handle(self, nodes, time_broker):
         for node_id in time_broker['node_timers']:
             time_broker['node_timers'][node_id] = 0
+
+
+#------------------------ Client Request ---------------------------------------
+class ClientRequestEvent(Event):
+    def handle(self, client, data):
+        client.send_message(data)
+

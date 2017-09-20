@@ -37,9 +37,11 @@ class WorldBroker(GenericStateMachine):
 
         # Initialize the cluster
         self.node_ids = range(5)
+        self.client_ids = range(len(self.node_ids), len(self.node_ids) + 3)
         conf = {'election_timeout_window': (150, 300),
                 'heartbeat_timeout': 50,
-                'nodes': set(self.node_ids)}
+                'nodes': set(self.node_ids),
+                'clients': set(self.client_ids)}
 
         # Event Queue
         self.current_time = 0
@@ -70,9 +72,13 @@ class WorldBroker(GenericStateMachine):
         for node in self.power_broker['nodes'].values():
             node.setup()
 
+        # For client request events
+        self.client_requests_num = 3 # arbitrary
+
     def log(self, entry):
         "TODO"
         self.test_logging.append(entry)
+
 
     #-TODO: handle other types.
     def print_log(self):
@@ -86,6 +92,7 @@ class WorldBroker(GenericStateMachine):
             elif entry['log_type'] == 'voted_for':
                 print("Node #{} voted for node #{}".format(entry['node'], entry['voted_for']))
 
+
     def get_node_for_testing(self, node_id):
         '''Return the canonical version of a node given its node_id.
         For testing purposes only. This is required for verifying
@@ -93,6 +100,7 @@ class WorldBroker(GenericStateMachine):
         DownNode which has no state and cannot be queried.'''
 
         return self.power_broker['down_nodes'].get(node_id, self.power_broker['nodes'][node_id])
+
 
     # Begin Helper functions for event generation
     def gen_basic_event(self, event_type, additional_map):
@@ -103,21 +111,29 @@ class WorldBroker(GenericStateMachine):
         base_map.update(additional_map)
         return fixed_dictionaries(base_map).flatmap(lambda x: just(event_type(x)))
 
+
     def gen_node(self):
         "TODO"
         return sampled_from(self.node_ids)
+
 
     def gen_node_set(self):
         "TODO"
         return sets(self.gen_node())
 
+    def gen_client(self):
+        return sampled_from(self.client_ids)
+
+
     def gen_node_pair(self):
         "TODO"
         return permutations(self.node_ids).flatmap(lambda x: just((x[0], x[1])))
 
+
     def gen_node_pairs(self):
         "TODO"
         return sets(self.gen_node_pair())
+
 
     # Begin Event Generators
 
@@ -125,11 +141,13 @@ class WorldBroker(GenericStateMachine):
         "TODO"
         return self.gen_basic_event(PowerDown, {'affected_node': self.gen_node()})
 
+
     def gen_clock_event(self):
         "TODO"
         return self.gen_basic_event(ClockSkew,
                                     {'affected_node': self.gen_node(),
                                      'skew_amount': integers(min_value=-100, max_value=100)})
+
 
     def gen_network_event(self):
         "TODO"
@@ -151,11 +169,19 @@ class WorldBroker(GenericStateMachine):
             self.gen_basic_event(SendDuplicate,
                                  {'affected_node': (self.gen_node()),
                                   'delay': integers(min_value=1,
-                                                    max_value=self.event_window_length)}))
+                                                    max_value=self.event_window_length)})) 
+
+
+    def gen_client_request_event(self):
+        return self.gen_basic_event(ClientRequestEvent,
+                                    {'client': self.gen_client(),
+                                     'data': some("thing")})      
+
 
     def gen_adverse_event(self):
         "TODO"
         return one_of(self.gen_network_event(), self.gen_power_event(), self.gen_clock_event())
+
 
     # Check that we have at most one leader per term.
     # Also, update leader_history.
@@ -171,12 +197,15 @@ class WorldBroker(GenericStateMachine):
                 print(self.leaders_history)
                 assert False
 
+
     def steps(self):
         "TODO"
         delays = lists(integers(1, self.message_send_delay))
         adverse_events = lists(self.gen_adverse_event(), max_size=self.catastrophy_level)
-        randomness = {'delays': delays, 'adverse_events': adverse_events}
+        client_request_events = lists(self.gen_client_request_event(), max_size=self.client_requests_num)
+        randomness = {'delays': delays, 'adverse_events': adverse_events, 'client_request_events': client_request_events}
         return fixed_dictionaries(randomness)
+
 
     # pylint: disable=arguments-differ
     def execute_step(self, randomness):
@@ -195,11 +224,15 @@ class WorldBroker(GenericStateMachine):
             for rev in reversals:
                 heappush(self.action_queue, rev)
 
+        # Add a set of client requests to the action_queue. 
+        for request in randomness['client_request_events']:
+            # no need to backout
+            heappush(self.action_queue, request)
+
         # Run the event loop
         run_until = self.current_time + self.time_window_length
         while self.current_time <= run_until:
             # Handle any event at the current slice in time
-
             while self.action_queue and self.action_queue[0].get_start_time() == self.current_time:
                 self.dispatch_event(heappop(self.action_queue))
             # Trip timers if timer is past timeout.
@@ -212,7 +245,6 @@ class WorldBroker(GenericStateMachine):
             self.check_leader_history()
 
 
-
     def teardown(self):
         "TODO"
         if self.catastrophy_level < 5 and self.current_time > self.time_window_length / 2:
@@ -222,6 +254,7 @@ class WorldBroker(GenericStateMachine):
             if not self.leaders_history:
                 self.print_log()
                 assert(False)
+
 
     # Event Dispatch
     def dispatch_event(self, event):
@@ -235,6 +268,9 @@ class WorldBroker(GenericStateMachine):
             event.handle(self.power_broker['nodes'], self.power_broker)
         elif isinstance(event, TimerEvent):
             event.handle(self.power_broker['nodes'], self.time_broker)
+        elif isinstance(event, ClientRequestEvent):
+            event.handle(self.client_ids, self.event_map['client'], self.event_map['data'])
+
 
     # Handle Timer Events
 
@@ -243,9 +279,11 @@ class WorldBroker(GenericStateMachine):
         self.time_broker['node_timers'][node_id] = self.current_time + \
             self.time_broker['node_time_offsets'][node_id] + timeout
 
+
     def clear_timer(self, node_id):
         "TODO"
         self.time_broker['node_timers'][node_id] = None
+
 
     # Handle Network Events
 
@@ -265,6 +303,7 @@ class WorldBroker(GenericStateMachine):
                      'sender': origin}
 
         heappush(self.action_queue, DeliverMessage(event_map))
+
 
 # pylint: disable=invalid-name
 TestSet = WorldBroker.TestCase
