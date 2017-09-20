@@ -87,11 +87,11 @@ class SendDelay(NetworkEvent):
     def backout(self):
         return [StopSendDelay(self.window_terminus())]
 
-    def handle(self, nodes, network_broker): 
+    def handle(self, nodes, network_broker):
         delays_dict = network_broker['delays']
         from_node = self.event_map['sender']
         for to_node in self.event_map['affected_nodes']:
-            delays_dict[(from_node, to_node)] += 1 # Delay by 1, not sure if this is the amount we want to increment
+            delays_dict[(from_node, to_node)] += self.event_map['delay']
 
 
 class StopSendDelay(NetworkEvent):
