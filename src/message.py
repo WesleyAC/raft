@@ -42,3 +42,6 @@ class RequestVoteResponse:
     def __init__(self, term, vote_granted):
         self.term = term
         self.vote_granted = vote_granted
+
+class ClientRead:
+    
