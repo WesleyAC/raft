@@ -88,7 +88,7 @@ class WorldBroker(GenericStateMachine):
         "TODO"
         base_map = {'start_time': integers(min_value=self.current_time,
                                            max_value=self.time_window_length + self.current_time),
-                    'event_length': integers(min_value=1, max_value=self.time_window_length)}
+                    'event_length': integers(min_value=1, max_value=self.event_window_length)}
         base_map.update(additional_map)
         return fixed_dictionaries(base_map).flatmap(lambda x: just(event_type(x)))
 
